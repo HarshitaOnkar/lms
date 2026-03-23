@@ -8,7 +8,7 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const { app, env } = createApp();
 
-const port = env.PORT;
+const port = env?.PORT ?? Number(process.env.PORT ?? 4000);
 app.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`API listening on :${port}`);

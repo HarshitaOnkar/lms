@@ -1,28 +1,13 @@
 {
-  "name": "lms",
-  "private": true,
-  "workspaces": [
-    "apps/*"
-  ],
-  "scripts": {
-    "db:up": "docker compose up -d",
-    "db:down": "docker compose down",
-    "db:check": "node apps/api/scripts/test-db.js",
-    "clean:web": "npm run clean -w apps/web",
-    "dev": "npm run dev:web",
-    "dev:web": "npm run dev -w apps/web",
-    "dev:api": "npm run dev -w apps/api",
-    "build": "npm run build -ws",
-    "start:prod": "node --import tsx apps/web/server.ts",
-    "migrate:deploy": "npm run prisma:migrate:deploy -w apps/api",
-    "docker:build": "docker build -t lms .",
-    "lint": "npm run lint -ws",
-    "typecheck": "npm run typecheck -ws"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "dependencies": {
-    "mysql2": "^3.20.0"
-  }
+"name": "lms-api",
+"version": "1.0.0",
+"main": "index.js",
+"scripts": {
+"start": "node index.js"
+},
+"dependencies": {
+"express": "^4.18.2",
+"mysql2": "^3.12.0",
+"cors": "^2.8.5"
+}
 }

@@ -7,6 +7,7 @@ const DASHBOARD_PATHS = [
   "/courses",
   "/free-courses",
   "/paid-courses",
+  "/chat",
   "/payment",
   "/search",
   "/learning",

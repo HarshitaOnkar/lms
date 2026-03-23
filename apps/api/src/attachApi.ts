@@ -97,6 +97,62 @@ export function attachApi(app: Express, options: AttachApiOptions): Env {
   app.use("/api/progress", createProgressRouter(env, progressController));
   app.use("/api/enrollments", createEnrollmentsRouter(env, enrollmentsController));
   app.use("/api/users", createUsersRouter(env, usersController));
+  app.post("/api/ai/chat", async (req: Request, res: Response) => {
+    try {
+      const userMessage = String(req.body?.message ?? "").trim();
+      if (!userMessage) {
+        return res.status(400).json({ message: "message is required" });
+      }
+
+      const token = process.env.HF_TOKEN;
+      if (!token) {
+        return res.status(500).json({
+          message: "HF_TOKEN is not configured on the server."
+        });
+      }
+
+      const response = await fetch(
+        "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            inputs: `<s>[INST] You are LMS AI Assistant. Give concise, practical answers about courses, learning paths, and study planning.\n\n${userMessage} [/INST]`,
+            parameters: {
+              max_new_tokens: 200,
+              temperature: 0.7,
+              return_full_text: false
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        // eslint-disable-next-line no-console
+        console.error("Hugging Face inference error:", response.status, errText);
+        return res.status(502).json({ message: "AI provider failed to generate response." });
+      }
+
+      const data = (await response.json()) as Array<{ generated_text?: string }> | { generated_text?: string };
+      const text = Array.isArray(data)
+        ? (data[0]?.generated_text ?? "").trim()
+        : (data.generated_text ?? "").trim();
+
+      if (!text) {
+        return res.status(502).json({ message: "Empty AI response." });
+      }
+
+      return res.json({ reply: text });
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("AI chat route crashed:", error);
+      return res.status(500).json({ message: "Failed to process AI chat request." });
+    }
+  });
 
   if (options.mode === "standalone") {
     app.use((_req, res) => res.status(404).json({ message: "Not found" }));

@@ -5,7 +5,7 @@ import express, { type Express, type Request, type Response } from "express";
 
 import { loadEnv } from "./config/env";
 import type { Env } from "./config/env";
-import { prisma } from "./lib/prisma";
+import { getPrisma } from "./lib/prisma";
 import { errorHandler } from "./middleware/errorHandler";
 import { AuthController } from "./modules/auth/auth.controller";
 import { AuthRepository } from "./modules/auth/auth.repository";
@@ -61,6 +61,7 @@ export type AttachApiOptions =
  */
 export function attachApi(app: Express, options: AttachApiOptions): Env {
   const env = loadEnv();
+  const prisma = getPrisma();
 
   app.use(
     cors({

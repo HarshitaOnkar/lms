@@ -39,3 +39,6 @@
     "seed": "node prisma/seed.js"
   }
 }
+"dependencies": {
+  "mysql2": "^3.12.0"
+}

@@ -8,11 +8,12 @@ function getApiBaseUrl() {
   const fallbackProdApi = "https://lms-api-inky.vercel.app";
   // Browser: same origin (combined Next + Express on one port)
   if (typeof window !== "undefined") {
-    // In deployed web apps, fail-safe to hosted API if env var is missing.
-    if (
-      window.location.hostname.endsWith("vercel.app") &&
-      !window.location.hostname.includes("lms-api-inky")
-    ) {
+    // In any non-local deployed frontend, fail-safe to hosted API if env var is missing.
+    const host = window.location.hostname.toLowerCase();
+    const isLocal =
+      host === "localhost" || host === "127.0.0.1" || host.endsWith(".local");
+    const isApiHost = host.includes("lms-api-inky");
+    if (!isLocal && !isApiHost) {
       return fallbackProdApi;
     }
     return "";

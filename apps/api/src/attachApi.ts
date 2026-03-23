@@ -36,6 +36,17 @@ function corsOriginOption(env: Env): CorsOptions["origin"] {
       callback(null, true);
       return;
     }
+    let isVercelOrigin = false;
+    try {
+      isVercelOrigin = /\.vercel\.app$/i.test(new URL(origin).hostname);
+    } catch {
+      isVercelOrigin = false;
+    }
+    // Always allow Vercel preview/production frontends for this project family.
+    if (isVercelOrigin) {
+      callback(null, true);
+      return;
+    }
     // If no frontend origin is configured, allow cross-origin requests by default.
     if (!env.FRONTEND_ORIGIN) {
       callback(null, true);

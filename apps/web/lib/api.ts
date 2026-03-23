@@ -5,9 +5,20 @@ export type ApiFetchOptions = RequestInit & {
 function getApiBaseUrl() {
   const fromEnv = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (fromEnv) return fromEnv.replace(/\/$/, "");
+  const fallbackProdApi = "https://lms-api-inky.vercel.app";
   // Browser: same origin (combined Next + Express on one port)
-  if (typeof window !== "undefined") return "";
+  if (typeof window !== "undefined") {
+    // In deployed web apps, fail-safe to hosted API if env var is missing.
+    if (
+      window.location.hostname.endsWith("vercel.app") &&
+      !window.location.hostname.includes("lms-api-inky")
+    ) {
+      return fallbackProdApi;
+    }
+    return "";
+  }
   // SSR / server: default to this app’s port when env not set
+  if (process.env.NODE_ENV === "production") return fallbackProdApi;
   const port = process.env.PORT ?? "3001";
   return `http://127.0.0.1:${port}`;
 }

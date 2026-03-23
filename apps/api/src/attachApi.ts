@@ -98,6 +98,22 @@ export function attachApi(app: Express, options: AttachApiOptions): Env {
   app.use("/api/progress", createProgressRouter(env, progressController));
   app.use("/api/enrollments", createEnrollmentsRouter(env, enrollmentsController));
   app.use("/api/users", createUsersRouter(env, usersController));
+  app.get("/", (_req, res) => {
+    res.json({
+      ok: true,
+      service: "lms-api",
+      health: "/health",
+      routes: [
+        "/api/auth",
+        "/api/subjects",
+        "/api/videos",
+        "/api/progress",
+        "/api/enrollments",
+        "/api/users",
+        "/api/ai/chat"
+      ]
+    });
+  });
   app.post("/api/ai/chat", async (req: Request, res: Response) => {
     try {
       const userMessage = String(req.body?.message ?? "").trim();

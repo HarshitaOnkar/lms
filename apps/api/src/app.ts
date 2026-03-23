@@ -17,7 +17,7 @@ export function createApp() {
         status: "degraded",
         message: "API is not configured.",
         required_env: [
-          "DATABASE_URL",
+          "DATABASE_URL (mysql://...)",
           "JWT_ACCESS_SECRET",
           "JWT_REFRESH_SECRET"
         ]
@@ -28,7 +28,7 @@ export function createApp() {
       res.status(503).json({
         message: "API is not configured.",
         required_env: [
-          "DATABASE_URL",
+          "DATABASE_URL (mysql://...)",
           "JWT_ACCESS_SECRET",
           "JWT_REFRESH_SECRET"
         ]

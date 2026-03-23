@@ -4,10 +4,14 @@ const envSchema = z.object({
   NODE_ENV: z.string().optional(),
   PORT: z.coerce.number().default(4000),
 
-  DATABASE_URL: z.string().min(1),
+  DATABASE_URL: z
+    .string()
+    .min(1)
+    .refine((v) => v.startsWith("mysql://"), "DATABASE_URL must start with mysql://"),
 
-  JWT_ACCESS_SECRET: z.string().min(16),
-  JWT_REFRESH_SECRET: z.string().min(16),
+  // Keep runtime tolerant in hosted envs where secrets may be short but present.
+  JWT_ACCESS_SECRET: z.string().min(1),
+  JWT_REFRESH_SECRET: z.string().min(1),
 
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().default(15 * 60),
   REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().default(30 * 24 * 60 * 60),

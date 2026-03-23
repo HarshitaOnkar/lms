@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function PaymentPage() {
+function PaymentPageContent() {
   const search = useSearchParams();
   const course = search.get("course") ?? "Selected course";
   const [started, setStarted] = useState(false);
@@ -126,6 +126,16 @@ export default function PaymentPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense
+      fallback={<div className="mx-auto min-h-screen w-full max-w-2xl px-4 pt-6 text-white">Loading...</div>}
+    >
+      <PaymentPageContent />
+    </Suspense>
   );
 }
 

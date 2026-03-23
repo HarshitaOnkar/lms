@@ -2,7 +2,6 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-
 import { ConditionalRoot } from "../components/ConditionalRoot";
 import { Providers } from "../components/Providers";
 

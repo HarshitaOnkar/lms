@@ -27,7 +27,21 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 export function loadEnv(): Env {
-  const parsed = envSchema.safeParse(process.env);
+  const raw = process.env;
+  const normalized = {
+    ...raw,
+    DATABASE_URL: raw.DATABASE_URL ?? raw.MYSQL_URL ?? raw.DB_URL,
+    JWT_ACCESS_SECRET:
+      raw.JWT_ACCESS_SECRET ?? raw.JWT_SECRET ?? raw.JWT_SECRET_KEY,
+    JWT_REFRESH_SECRET:
+      raw.JWT_REFRESH_SECRET ??
+      raw.JWT_REFRESH_TOKEN_SECRET ??
+      raw.JWT_ACCESS_SECRET ??
+      raw.JWT_SECRET ??
+      raw.JWT_SECRET_KEY
+  };
+
+  const parsed = envSchema.safeParse(normalized);
   if (!parsed.success) {
     // eslint-disable-next-line no-console
     console.error(parsed.error.flatten().fieldErrors);

@@ -1,20 +1,17 @@
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
+const next = require("next");
 
-const app = express();
+const dev = process.env.NODE_ENV !== "production";
+const host = "0.0.0.0";
+const port = Number(process.env.PORT || 10000);
+const webDir = path.join(__dirname, "apps", "web");
 
 const users = [];
 const sessions = new Map();
 let nextUserId = 1;
-
-app.use(express.json());
-app.use(
-  cors({
-    origin: (origin, cb) => cb(null, origin || true),
-    credentials: true
-  })
-);
 
 function getAuthToken(req) {
   const header = req.headers.authorization || "";
@@ -22,71 +19,97 @@ function getAuthToken(req) {
   return header.slice(7).trim() || null;
 }
 
-function authRequired(req, res, next) {
+function authRequired(req, res, nextFn) {
   const token = getAuthToken(req);
   if (!token || !sessions.has(token)) {
     return res.status(401).json({ message: "Unauthorized" });
   }
   req.userId = sessions.get(token);
-  return next();
+  return nextFn();
 }
 
-app.get("/", (_req, res) => {
-  res.send("API working");
-});
+async function start() {
+  const app = express();
+  const nextApp = next({ dev, dir: webDir, hostname: host, port });
+  const handle = nextApp.getRequestHandler();
 
-app.post("/api/auth/register", (req, res) => {
-  const { name, email, password } = req.body || {};
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: "Name, email and password are required" });
-  }
+  await nextApp.prepare();
 
-  const normalizedEmail = String(email).trim().toLowerCase();
-  if (users.some((u) => u.email === normalizedEmail)) {
-    return res.status(409).json({ message: "Email already registered" });
-  }
+  app.use(express.json());
+  app.use(
+    cors({
+      origin: (origin, cb) => cb(null, origin || true),
+      credentials: true
+    })
+  );
 
-  const user = {
-    id: nextUserId++,
-    name: String(name).trim(),
-    email: normalizedEmail,
-    password: String(password)
-  };
-  users.push(user);
-  return res.status(201).json({
-    user: { id: user.id, name: user.name, email: user.email }
+  app.get("/api/health", (_req, res) => {
+    res.json({ ok: true });
   });
-});
 
-app.post("/api/auth/login", (req, res) => {
-  const { email, password } = req.body || {};
-  const normalizedEmail = String(email || "").trim().toLowerCase();
-  const user = users.find((u) => u.email === normalizedEmail && u.password === String(password || ""));
-  if (!user) return res.status(401).json({ message: "Invalid credentials" });
+  app.post("/api/auth/register", (req, res) => {
+    const { name, email, password } = req.body || {};
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email and password are required" });
+    }
 
-  const token = crypto.randomUUID();
-  sessions.set(token, user.id);
-  return res.json({
-    access_token: token,
-    user: { id: user.id, name: user.name, email: user.email }
+    const normalizedEmail = String(email).trim().toLowerCase();
+    if (users.some((u) => u.email === normalizedEmail)) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+
+    const user = {
+      id: nextUserId++,
+      name: String(name).trim(),
+      email: normalizedEmail,
+      password: String(password)
+    };
+    users.push(user);
+    return res.status(201).json({
+      user: { id: user.id, name: user.name, email: user.email }
+    });
   });
-});
 
-app.post("/api/auth/logout", authRequired, (req, res) => {
-  const token = getAuthToken(req);
-  if (token) sessions.delete(token);
-  return res.status(204).send();
-});
+  app.post("/api/auth/login", (req, res) => {
+    const { email, password } = req.body || {};
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const user = users.find(
+      (u) => u.email === normalizedEmail && u.password === String(password || "")
+    );
+    if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
-app.post("/api/auth/refresh", (_req, res) => {
-  return res.status(401).json({ message: "Refresh token flow is not configured" });
-});
+    const token = crypto.randomUUID();
+    sessions.set(token, user.id);
+    return res.json({
+      access_token: token,
+      user: { id: user.id, name: user.name, email: user.email }
+    });
+  });
 
-app.get("/api/users/me", authRequired, (req, res) => {
-  const user = users.find((u) => u.id === req.userId);
-  if (!user) return res.status(404).json({ message: "User not found" });
-  return res.json({ id: user.id, name: user.name, email: user.email });
-});
+  app.post("/api/auth/logout", authRequired, (req, res) => {
+    const token = getAuthToken(req);
+    if (token) sessions.delete(token);
+    return res.status(204).send();
+  });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Server running on port", PORT));
+  app.post("/api/auth/refresh", (_req, res) => {
+    return res.status(401).json({ message: "Refresh token flow is not configured" });
+  });
+
+  app.get("/api/users/me", authRequired, (req, res) => {
+    const user = users.find((u) => u.id === req.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    return res.json({ id: user.id, name: user.name, email: user.email });
+  });
+
+  app.all("*", (req, res) => handle(req, res));
+
+  app.listen(port, host, () => {
+    console.log(`Combined app ready on http://${host}:${port}`);
+  });
+}
+
+start().catch((err) => {
+  console.error("Server startup failed", err);
+  process.exit(1);
+});

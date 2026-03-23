@@ -13,7 +13,7 @@ function getApiBaseUrl() {
     const isLocal =
       host === "localhost" || host === "127.0.0.1" || host.endsWith(".local");
     const isApiHost = host.includes("lms-api-inky");
-    if (isLocal) return "http://127.0.0.1:10000";
+    if (isLocal) return "";
     if (!isLocal && !isApiHost) {
       return fallbackProdApi;
     }

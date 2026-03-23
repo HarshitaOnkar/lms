@@ -8,6 +8,12 @@ export function createApp() {
   try {
     env = attachApi(app, { mode: "standalone" });
   } catch (error) {
+    const reason =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : "Unknown bootstrap error";
     // Keep function alive on misconfigured deployments; return actionable response.
     // eslint-disable-next-line no-console
     console.error("API bootstrap failed.", error);
@@ -16,6 +22,7 @@ export function createApp() {
       res.status(503).json({
         status: "degraded",
         message: "API is not configured.",
+        reason,
         required_env: [
           "DATABASE_URL (mysql://...)",
           "JWT_ACCESS_SECRET",
@@ -27,6 +34,7 @@ export function createApp() {
     app.use((_req, res) => {
       res.status(503).json({
         message: "API is not configured.",
+        reason,
         required_env: [
           "DATABASE_URL (mysql://...)",
           "JWT_ACCESS_SECRET",

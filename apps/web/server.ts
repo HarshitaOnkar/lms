@@ -40,10 +40,31 @@ async function main() {
   await nextApp.prepare();
   const handle = nextApp.getRequestHandler();
 
-  attachApi(expressApp, {
-    mode: "combined",
-    nextHandler: (req, res) => handle(req, res)
-  });
+  try {
+    attachApi(expressApp, {
+      mode: "combined",
+      nextHandler: (req, res) => handle(req, res)
+    });
+  } catch (error) {
+    // Keep web pages available even if API env/config is missing in a serverless runtime.
+    // eslint-disable-next-line no-console
+    console.error("API bootstrap failed. Serving web without API routes.", error);
+
+    expressApp.use("/api", (_req, res) => {
+      res.status(503).json({
+        message: "API is not configured.",
+        required_env: [
+          "DATABASE_URL",
+          "JWT_ACCESS_SECRET",
+          "JWT_REFRESH_SECRET"
+        ]
+      });
+    });
+
+    expressApp.use((req, res) => {
+      void handle(req, res);
+    });
+  }
 
   expressApp.listen(port, host, () => {
     // eslint-disable-next-line no-console

@@ -1,0 +1,40 @@
+# Example: app + MySQL on a VPS (set secrets via .env next to this file or export them).
+# DATABASE_URL must use the DB service hostname, e.g. mysql://lms:lms@db:3306/lms
+# Usage: docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+services:
+  web:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-lms}
+      MYSQL_USER: ${MYSQL_USER:-lms}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-lms}
+    volumes:
+      - lms_prod_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  lms_prod_mysql:

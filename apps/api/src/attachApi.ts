@@ -1,0 +1,120 @@
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import type { CorsOptions } from "cors";
+import express, { type Express, type Request, type Response } from "express";
+
+import { loadEnv } from "./config/env";
+import type { Env } from "./config/env";
+import { prisma } from "./lib/prisma";
+import { errorHandler } from "./middleware/errorHandler";
+import { AuthController } from "./modules/auth/auth.controller";
+import { AuthRepository } from "./modules/auth/auth.repository";
+import { AuthService } from "./modules/auth/auth.service";
+import { createAuthRouter } from "./modules/auth/auth.routes";
+import { EnrollmentsController } from "./modules/enrollments/enrollments.controller";
+import { EnrollmentsService } from "./modules/enrollments/enrollments.service";
+import { createEnrollmentsRouter } from "./modules/enrollments/enrollments.routes";
+import { ProgressController } from "./modules/progress/progress.controller";
+import { ProgressRepository } from "./modules/progress/progress.repository";
+import { ProgressService } from "./modules/progress/progress.service";
+import { createProgressRouter } from "./modules/progress/progress.routes";
+import { SubjectsController } from "./modules/subjects/subjects.controller";
+import { SubjectsRepository } from "./modules/subjects/subjects.repository";
+import { SubjectsService } from "./modules/subjects/subjects.service";
+import { createSubjectsRouter } from "./modules/subjects/subjects.routes";
+import { VideosController } from "./modules/videos/videos.controller";
+import { VideosService } from "./modules/videos/videos.service";
+import { createVideosRouter } from "./modules/videos/videos.routes";
+import { UsersController } from "./modules/users/users.controller";
+import { UsersService } from "./modules/users/users.service";
+import { createUsersRouter } from "./modules/users/users.routes";
+import { healthRouter } from "./routes/health";
+
+function corsOriginOption(env: Env): CorsOptions["origin"] {
+  return (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (env.FRONTEND_ORIGIN && origin === env.FRONTEND_ORIGIN) {
+      callback(null, true);
+      return;
+    }
+    if (env.NODE_ENV !== "production") {
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
+        callback(null, true);
+        return;
+      }
+    }
+    callback(new Error(`CORS blocked for ${origin}`));
+  };
+}
+
+export type AttachApiOptions =
+  | { mode: "standalone" }
+  | { mode: "combined"; nextHandler: (req: Request, res: Response) => void | Promise<void> };
+
+/**
+ * Mount LMS REST API on an Express app.
+ * - `standalone`: API-only (404 JSON for any unknown path).
+ * - `combined`: unknown `/api/*` and `/health/*` → 404 JSON; everything else → Next.js.
+ */
+export function attachApi(app: Express, options: AttachApiOptions): Env {
+  const env = loadEnv();
+
+  app.use(
+    cors({
+      origin: corsOriginOption(env),
+      credentials: true
+    })
+  );
+  app.use(express.json({ limit: "1mb" }));
+  app.use(cookieParser());
+
+  app.use("/health", healthRouter);
+
+  const authRepo = new AuthRepository(prisma);
+  const subjectsRepo = new SubjectsRepository(prisma);
+  const progressRepo = new ProgressRepository(prisma);
+
+  const authService = new AuthService(env, authRepo);
+  const subjectsService = new SubjectsService(prisma, subjectsRepo, progressRepo);
+  const videosService = new VideosService(prisma, progressRepo);
+  const progressService = new ProgressService(env, prisma, progressRepo);
+  const enrollmentsService = new EnrollmentsService(prisma);
+  const usersService = new UsersService(prisma);
+
+  const authController = new AuthController(env, authService);
+  const subjectsController = new SubjectsController(subjectsService);
+  const videosController = new VideosController(videosService);
+  const progressController = new ProgressController(progressService);
+  const enrollmentsController = new EnrollmentsController(enrollmentsService);
+  const usersController = new UsersController(usersService);
+
+  app.use("/api/auth", createAuthRouter(authController));
+  app.use("/api/subjects", createSubjectsRouter(env, subjectsController));
+  app.use("/api/videos", createVideosRouter(env, videosController));
+  app.use("/api/progress", createProgressRouter(env, progressController));
+  app.use("/api/enrollments", createEnrollmentsRouter(env, enrollmentsController));
+  app.use("/api/users", createUsersRouter(env, usersController));
+
+  if (options.mode === "standalone") {
+    app.use((_req, res) => res.status(404).json({ message: "Not found" }));
+  } else {
+    app.use((req, res, next) => {
+      if (res.headersSent) return next();
+      if (req.path.startsWith("/api") || req.path.startsWith("/health")) {
+        return res.status(404).json({ message: "Not found" });
+      }
+      next();
+    });
+    // Express 5 / path-to-regexp: no bare `*` pattern — use a pathless `use` as catch-all for Next.
+    app.use((req, res) => {
+      void options.nextHandler(req, res);
+    });
+  }
+
+  app.use(errorHandler);
+
+  return env;
+}

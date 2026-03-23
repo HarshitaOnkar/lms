@@ -1,0 +1,23 @@
+# Local MySQL for development — no cloud DB required.
+# Usage: `docker compose up -d` then set DATABASE_URL in apps/api/.env (see .env.example).
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: lms
+      MYSQL_USER: lms
+      MYSQL_PASSWORD: lms
+    ports:
+      - "3306:3306"
+    volumes:
+      - lms_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  lms_mysql_data:

@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuthStore } from "../store/authStore";
 
 const DASHBOARD_PATHS = [
   "/courses",
@@ -22,8 +24,22 @@ function isDashboardPath(pathname: string) {
 
 export function ConditionalRoot({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const bootstrapped = useAuthStore((s) => s.bootstrapped);
   const dashboard = isDashboardPath(pathname);
   const auth = AUTH_PATHS.includes(pathname);
+
+  useEffect(() => {
+    if (!bootstrapped) return;
+    if (dashboard && !user) {
+      router.replace("/login");
+    }
+  }, [bootstrapped, dashboard, router, user]);
+
+  if (dashboard && (!bootstrapped || !user)) {
+    return null;
+  }
 
   if (auth || dashboard) {
     return <>{children}</>;
